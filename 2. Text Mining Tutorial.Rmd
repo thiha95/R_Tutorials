@@ -1,0 +1,328 @@
+---
+title: "2.Text Mining Tutorial"
+output: rmarkdown::github_document
+---
+
+1. Import Data
+
+```{r}
+# load relevant packages
+library(tidyverse)
+library(tidytext)
+```
+
+The data set we use in this tutorial contains the lyrics of top 100 songs each year in billboards from 1964-2015
+
+```{r}
+# import a csv file from an url
+songs <- read_csv("https://raw.githubusercontent.com/thiha95/R_Tutorials/main/billboard_lyrics_1964-2015.csv")
+head(songs)
+```
+
+2. Data manipulation with dplyr
+
+dplyr is a tidyverse package for manipulation of data frame
+
+More on dplyr:
+https://dplyr.tidyverse.org/
+
+%>% (pipe operator) is widly used in tidyverse
+More on pipe operator:
+https://r4ds.had.co.nz/pipes.html
+
+```{r}
+
+# data manipulation practice one
+# to see which artists appear in billboard most often
+
+top_artists <- songs %>%
+  group_by(Artist) %>% # allows you to perform any operation “by group”
+  summarise(n=n()) %>% # count the distinct values
+  top_n(10)  # top 10 by n (count)
+
+print(top_artists)
+```
+
+```{r}
+
+# data manipulation practice two:
+# to display songs of elton john that are published before 1975
+
+elton_before_1975 <- songs %>%
+  filter(Artist =='elton john') %>%
+  filter(Year <= 1975)
+
+print(elton_before_1975)
+```
+
+
+```{r}
+
+# data manipulation practice three
+# count missing values in 'Lyrics' column
+
+songs %>%
+  summarise(na_count = sum(is.na(Lyrics)))
+```
+
+```{r}
+
+songs_lyrics <- songs %>%
+  filter(is.na(Lyrics) == FALSE)
+
+print(paste('Number of rows in origianl data frame:', nrow(songs)))
+print(paste('Number of rows in the data frame with no missing values:', nrow(songs_lyrics)))
+```
+
+3. Text Tokenization with tidytext
+
+The goal is to transform the data frame into a one-token-per-row format using the unnest_token() function.
+
+More on tidytext, unnest_token() function:
+https://www.tidytextmining.com/tidytext.html
+
+```{r}
+
+# unnest_tokens() function takes two argument:
+# 1. output column name (word, in this example): the column that will be created as the text is unnested into it
+# 2. input column name (Lyrics, in this case): the column that the text comes from
+
+songs_words <- songs_lyrics %>%
+  select('Song', 'Year', 'Lyrics') %>% # only keep these three columns
+  unnest_tokens(word, Lyrics) # Lyrics -> word
+
+print(songs_words)
+```
+To filter the stop words
+
+Stop word: a commonly used word (such as “the”, “a”, “an”, “in”). 
+
+```{r}
+# tidytext package has a built-in data set called stop_words
+# let's take a look
+stop_words
+```
+
+```{r}
+
+# since song_words and stop_words have the same column name 'word'
+# we can use the anti_join function to filter the stop words
+
+# to find the 20 most popular words in lyrics
+top_20_words <- songs_words %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) %>%
+  top_n(20)
+
+print(top_20_words)
+```
+
+To visualize the result using ggplot2 package.
+
+More on ggplot2:
+https://r4ds.had.co.nz/data-visualisation.html
+
+```{r}
+
+# bar chart of the top 20 most popular words in lyrics
+
+top_20_words %>%
+  mutate(word = reorder(word, n)) %>% # reorder the word by their frequency
+  ggplot(aes(word, n)) +
+  geom_col() + # bar chart
+  xlab(NULL) +
+  coord_flip() # flip the x-y coordinates
+```
+
+4. Tokenization: bigrams
+
+bigram: a two-word token
+
+```{r}
+
+# bigram tokenization using unnest_tokens() with the argument 'token' and 'n'
+
+songs_bigram <- songs_lyrics %>%
+  select('Song', 'Year', 'Lyrics') %>% # only keep these three columns
+  unnest_tokens(bigram, Lyrics, token = "ngrams", n=2) # Lyrics -> bigram
+
+print(songs_bigram)
+```
+filtering stop words in bigram take three steops
+1. break the bigram column into two columns: word1 and word2
+2. filter stopwords in word1 and word2
+3. combine the two columns back to bigram
+
+```{r}
+
+# separate the bigram into two columns
+songs_bigram %>% 
+  separate(bigram, c("word1", "word2"), sep = " ")
+```
+```{r}
+
+# filter the stop words
+songs_bigram %>% 
+  separate(bigram, c("word1", "word2"), sep = " ")  %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) 
+```
+
+```{r}
+
+bigram_filtered <- songs_bigram %>% 
+  separate(bigram, c("word1", "word2"), sep = " ")  %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%  
+  unite(bigram, word1, word2, sep = " ") # unite the word1, word2 column into bigram column
+
+print(bigram_filtered)
+```
+To visualize the result using ggplot2 package.
+
+```{r}
+
+# bar chart: most popular two-word phrase in lyrics
+bigram_filtered %>%  
+  count(bigram, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(bigram = reorder(bigram, n)) %>%
+  ggplot(aes(bigram, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip()
+```
+
+5. Sentiment Analysis
+
+The method in this tutorial is a simple word-based sentiment analysis. 
+It requires no machine learning. 
+
+```{r}
+
+# tidytext has a data frame that labels certain 
+
+# to retrieve the sentiment labeled word table 
+senti_words <- get_sentiments("bing")
+print(senti_words)
+```
+
+```{r}
+
+# to count the most frequent negative and positive words
+
+songs_words %>%
+  inner_join(senti_words) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n))
+```
+
+```{r}
+
+# facet bar chart
+
+songs_words %>%
+  inner_join(senti_words) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Top 10 Postive and Negative Words",
+       x = NULL) +
+  coord_flip()
+
+```
+Song-level sentiment analysis
+
+Steps:
+1. create a table with songs and their word_count
+2. count the negative words of each song
+3. calculate the negative ratio (negative_word_count / word_count) of each song
+4. most negative songs: songs with the highest negative ratio
+
+```{r}
+
+# calculate the word counts table by songs
+
+wordcounts <- songs_words  %>%
+  group_by(Year, Song) %>%
+  summarize(word_count = n())
+
+wordcounts
+```
+```{r}
+
+# count the negative words in each song
+
+negative_words <- get_sentiments("bing") %>% 
+  filter(sentiment == "negative")
+
+negative_by_song <- songs_words %>%
+  inner_join(negative_words) %>%
+  group_by(Year, Song)%>%
+  summarise(negative_words_count = n())
+
+negative_by_song
+```
+
+
+```{r}
+
+# create a data frame 
+
+negative_rate_by_song <- wordcounts %>%
+  inner_join(negative_by_song, by = c("Year", "Song"))%>%
+  mutate(negative_rate = negative_words_count / word_count) %>%
+  arrange(desc(negative_rate)) %>%
+  distinct(Song, .keep_all = TRUE) %>%
+  unite(Year_Song,Year, Song, sep = ", ") %>%
+  top_n(20) 
+
+print(negative_rate_by_song)
+```
+
+```{r}
+
+negative_rate_by_song %>%
+  ggplot(aes(reorder(Year_Song, negative_rate), negative_rate)) +
+  geom_col(show.legend = FALSE) +
+  labs(y = "Twenty Most Negavie Songs 1965 - 2014",
+       x = NULL) +
+  coord_flip()
+```
+As we can see, the result is problematic. 'shake' is labeled as a negative words in the dictionary, but it does not always has a negative connotation in song lyrics. One way of modifying the result is to remove 'shake' from the senti_word table.
+
+```{r}
+
+# filter the 'shake'
+
+negative_words_new <- get_sentiments("bing") %>% 
+  filter(sentiment == "negative") %>%
+  filter(word != 'shake')
+
+negative_by_song_new <- songs_words %>%
+  inner_join(negative_words_new) %>%
+  group_by(Year, Song)%>%
+  summarise(negative_words_count = n())
+
+wordcounts %>%
+  inner_join(negative_by_song_new, by = c("Year", "Song"))%>%
+  mutate(negative_rate = negative_words_count / word_count) %>%
+  arrange(desc(negative_rate)) %>%
+  distinct(Song, .keep_all = TRUE) %>%
+  unite(Year_Song,Year, Song, sep = ", ") %>%
+  top_n(20) %>%
+  ggplot(aes(reorder(Year_Song, negative_rate), negative_rate)) +
+  geom_col(show.legend = FALSE) +
+  labs(y = "Twenty Most Negavie Songs 1965 - 2014",
+       x = NULL) +
+  coord_flip()
+
+```

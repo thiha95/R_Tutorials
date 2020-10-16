@@ -1,0 +1,70 @@
+---
+title: "1. R Basics"
+output: rmarkdown::github_document
+---
+
+1. Install and Load Packages
+
+Install packages: once you successfully install the packages, you don't need to install them again in the same environment.
+
+```{r}
+# An R package is a collection of functions, data, and documentation that extends the capabilities of base R
+# Tidyverse is one of most popular sets of packages in R for data analysis
+install.packages("tidyverse")
+install.packages("tidytext")
+```
+
+Load packages: you need to load the packages when you want to use them
+
+```{r}
+library(tidyverse)
+library(tidytext)
+```
+
+
+2. Basic Operations in R
+
+```{r}
+
+# You can do all kinds of basic computation in R
+# More on basic operation in R:
+# https://www.cyclismo.org/tutorial/R/basicOps.html
+
+1 + 1 # add
+```
+
+```{r}
+
+# In R, we use <- to assign a value to a variable
+# More on variable in R:
+# https://www.tutorialspoint.com/r/r_variables.htm
+
+first_variable <- 500 + 700
+
+print(first_variable)
+```
+
+3. Data Frame basics
+
+A data frame is a table like structure in which each column contains values of one variable and each row contains one set of values from each column. 
+
+Tidyverse packages offers many functions on handling data in data frame format.
+
+```{r}
+
+# load a built-in data
+data("mtcars")
+
+# to see the first few rows of the data
+head(mtcars)
+```
+```{r}
+
+# to see the whole dataset in a new window in R studio
+# don't use this function if the data set is too large
+View(mtcars)
+
+# more on data frames basics
+# https://www.tutorialspoint.com/r/r_data_frames.htm
+```
+
