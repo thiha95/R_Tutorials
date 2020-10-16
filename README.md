@@ -1,6 +1,6 @@
 # R_Tutorials
 
-### This repository contains data and notebook for R tutorials.
+### This repository contains data and notebooks for R tutorials.
 
 #### Data
 
